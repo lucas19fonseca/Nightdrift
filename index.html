@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👻 Ghost Runner - Jogo do Fantasma</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background: linear-gradient(180deg, #1a0033 0%, #0d001a 100%);
+            cursor: crosshair;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+            font-weight: bold;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #00ffff;
+            font-size: 14px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00ffff;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            font-size: 48px;
+            display: none;
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ff00ff;
+            box-shadow: 0 0 30px #ff00ff;
+        }
+
+        #gameOver button {
+            margin-top: 20px;
+            padding: 15px 40px;
+            font-size: 24px;
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        #gameOver button:hover {
+            transform: scale(1.1);
+        }
+
+        .ability-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 16px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .ability-active {
+            animation: pulse 0.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Controles Mobile */
+        #mobileControls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            display: none;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            gap: 10px;
+        }
+
+        .mobile-btn-row {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .mobile-btn {
+            background: linear-gradient(145deg, #00ffff, #0099cc);
+            border: 3px solid #ffffff;
+            border-radius: 15px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 15px;
+            min-width: 80px;
+            touch-action: manipulation;
+            user-select: none;
+            box-shadow: 0 5px 15px rgba(0, 255, 255, 0.4);
+            text-align: center;
+        }
+
+        .mobile-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(0, 255, 255, 0.6);
+        }
+
+        .mobile-btn.jump-btn {
+            background: linear-gradient(145deg, #ff00ff, #cc0099);
+            flex: 2;
+            font-size: 20px;
+        }
+
+        .mobile-btn.special {
+            background: linear-gradient(145deg, #ffff00, #cccc00);
+            color: #000;
+        }
+
+        @media (max-width: 768px) {
+            #controls {
+                display: none;
+            }
+            
+            #mobileControls {
+                display: block;
+            }
+            
+            canvas {
+                width: 100vw !important;
+                height: calc(100vh - 200px) !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="1200" height="600"></canvas>
+    
+    <div id="ui">
+        <div>👻 GHOST RUNNER</div>
+        <div>Distância: <span id="distance">0</span>m</div>
+        <div>Pontos: <span id="score">0</span></div>
+        <div>Fase: <span id="phase">1</span> - <span id="sceneName">Cemitério</span></div>
+    </div>
+
+    <div id="controls">
+        <div><strong>CONTROLES:</strong></div>
+        <div>ESPAÇO - Pular (segure para pulo carregado)</div>
+        <div>ESPAÇO (no ar) - Duplo Pulo</div>
+        <div>G - Inverter Gravidade</div>
+        <div>B - Bullet Time (desacelera)</div>
+        <div>P - Criar Plataforma</div>
+        <div>CLIQUE - Criar Portal</div>
+    </div>
+
+    <div id="gameOver">
+        <div>GAME OVER!</div>
+        <div style="font-size: 24px; margin-top: 20px;">
+            Distância: <span id="finalDistance">0</span>m<br>
+            Pontos: <span id="finalScore">0</span>
+        </div>
+        <button onclick="restartGame()">Jogar Novamente</button>
+    </div>
+
+    <div id="abilityIndicator" class="ability-indicator"></div>
+
+    <div id="mobileControls">
+        <div class="mobile-btn-row">
+            <button class="mobile-btn jump-btn" id="jumpBtn">
+                🚀 PULAR<br><small>(Segure)</small>
+            </button>
+        </div>
+        <div class="mobile-btn-row">
+            <button class="mobile-btn" id="gravityBtn">🔄 GRAVIDADE</button>
+            <button class="mobile-btn special" id="bulletBtn">⏱️ BULLET</button>
+            <button class="mobile-btn" id="platformBtn">🟦 PLATAFORMA</button>
+        </div>
+        <div style="text-align: center; color: #00ffff; font-size: 12px; margin-top: 10px;">
+            Toque na tela para criar PORTAIS 🌀
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Estado do jogo
+        let gameRunning = true;
+        let distance = 0;
+        let score = 0;
+        let gameSpeed = 6;
+        let phase = 1;
+
+        // Cenários que mudam
+        const scenarios = [
+            { name: 'Cemitério', color1: '#1a0033', color2: '#0d001a', obstacleColor: '#4a4a4a' },
+            { name: 'Floresta Assombrada', color1: '#001a0d', color2: '#000d06', obstacleColor: '#2d4a2d' },
+            { name: 'Castelo', color1: '#1a0d00', color2: '#0d0600', obstacleColor: '#4a3333' },
+            { name: 'Dimensão Fantasma', color1: '#330033', color2: '#1a001a', obstacleColor: '#6600cc' },
+            { name: 'Abismo Eterno', color1: '#000033', color2: '#000011', obstacleColor: '#000066' }
+        ];
+        let currentScenario = scenarios[0];
+
+        // Fantasma
+        const ghost = {
+            x: 100,
+            y: 400,
+            width: 40,
+            height: 50,
+            velocityY: 0,
+            isJumping: false,
+            canDoubleJump: true,
+            jumpCharge: 0,
+            charging: false,
+            gravity: 0.8,
+            gravityReversed: false,
+            opacity: 0.9,
+            trail: []
+        };
+
+        // Habilidades
+        let bulletTimeActive = false;
+        let bulletTimeCooldown = 0;
+        const bulletTimeDuration = 180; // 3 segundos
+        const bulletTimeCooldownTime = 300; // 5 segundos
+
+        let platformCooldown = 0;
+        const platformCooldownTime = 120; // 2 segundos
+
+        let portals = [];
+        let portalCooldown = 0;
+        const portalCooldownTime = 180; // 3 segundos
+
+        // Obstáculos e plataformas
+        let obstacles = [];
+        let platforms = [];
+        let particles = [];
+        
+        // Elementos de fundo
+        let planets = [];
+        let aliens = [];
+        let asteroids = [];
+
+        // Detectar mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // Controles
+        const keys = {};
+
+        // Event Listeners
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            
+            // Pulo
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!ghost.isJumping) {
+                    ghost.charging = true;
+                } else if (ghost.canDoubleJump) {
+                    // Duplo pulo
+                    ghost.velocityY = ghost.gravityReversed ? 12 : -12;
+                    ghost.canDoubleJump = false;
+                    createParticles(ghost.x + ghost.width/2, ghost.y + ghost.height/2, '#00ffff', 10);
+                    showAbility('DUPLO PULO!');
+                }
+            }
+            
+            // Inverter gravidade
+            if (e.code === 'KeyG') {
+                ghost.gravityReversed = !ghost.gravityReversed;
+                ghost.gravity = -ghost.gravity;
+                createParticles(ghost.x + ghost.width/2, ghost.y + ghost.height/2, '#ff00ff', 20);
+                showAbility('GRAVIDADE INVERTIDA!');
+            }
+            
+            // Bullet Time
+            if (e.code === 'KeyB' && bulletTimeCooldown === 0) {
+                bulletTimeActive = true;
+                bulletTimeCooldown = bulletTimeDuration + bulletTimeCooldownTime;
+                showAbility('BULLET TIME!', true);
+            }
+            
+            // Criar plataforma
+            if (e.code === 'KeyP' && platformCooldown === 0) {
+                createPlatform();
+                platformCooldown = platformCooldownTime;
+                showAbility('PLATAFORMA CRIADA!');
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+            
+            // Soltar pulo carregado
+            if (e.code === 'Space' && ghost.charging) {
+                ghost.charging = false;
+                const jumpPower = Math.min(ghost.jumpCharge / 10, 18);
+                ghost.velocityY = ghost.gravityReversed ? jumpPower : -jumpPower;
+                ghost.isJumping = true;
+                ghost.jumpCharge = 0;
+                createParticles(ghost.x + ghost.width/2, ghost.y + ghost.height/2, '#ffff00', 15);
+            }
+        });
+
+        // Click para portais
+        canvas.addEventListener('click', (e) => {
+            if (portalCooldown === 0 && portals.length < 2) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                createPortal(x, y);
+            }
+        });
+
+        // Touch para portais em mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (portalCooldown === 0 && portals.length < 2) {
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+                createPortal(x, y);
+            }
+        });
+
+        // Controles Mobile
+        if (isMobile) {
+            const jumpBtn = document.getElementById('jumpBtn');
+            const gravityBtn = document.getElementById('gravityBtn');
+            const bulletBtn = document.getElementById('bulletBtn');
+            const platformBtn = document.getElementById('platformBtn');
+
+            // Botão de pulo
+            jumpBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (!ghost.isJumping) {
+                    ghost.charging = true;
+                } else if (ghost.canDoubleJump) {
+                    ghost.velocityY = ghost.gravityReversed ? 12 : -12;
+                    ghost.canDoubleJump = false;
+                    createParticles(ghost.x + ghost.width/2, ghost.y + ghost.height/2, '#00ffff', 10);
+                    showAbility('DUPLO PULO!');
+                }
+            });
+
+            jumpBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (ghost.charging) {
+                    ghost.charging = false;
+                    const jumpPower = Math.min(ghost.jumpCharge / 10, 18);
+                    ghost.velocityY = ghost.gravityReversed ? jumpPower : -jumpPower;
+                    ghost.isJumping = true;
+                    ghost.jumpCharge = 0;
+                    createParticles(ghost.x + ghost.width/2, ghost.y + ghost.height/2, '#ffff00', 15);
+                }
+            });
+
+            // Botão de gravidade
+            gravityBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                ghost.gravityReversed = !ghost.gravityReversed;
+                ghost.gravity = -ghost.gravity;
+                createParticles(ghost.x + ghost.width/2, ghost.y + ghost.height/2, '#ff00ff', 20);
+                showAbility('GRAVIDADE INVERTIDA!');
+            });
+
+            // Botão de bullet time
+            bulletBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (bulletTimeCooldown === 0) {
+                    bulletTimeActive = true;
+                    bulletTimeCooldown = bulletTimeDuration + bulletTimeCooldownTime;
+                    showAbility('BULLET TIME!', true);
+                }
+            });
+
+            // Botão de plataforma
+            platformBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (platformCooldown === 0) {
+                    createPlatform();
+                    platformCooldown = platformCooldownTime;
+                    showAbility('PLATAFORMA CRIADA!');
+                }
+            });
+        }
+
+        function createPortal(x, y) {
+            portals.push({
+                x: x - 20,
+                y: y - 20,
+                width: 40,
+                height: 40,
+                rotation: 0
+            });
+            
+            if (portals.length === 2) {
+                portalCooldown = portalCooldownTime;
+                showAbility('PORTAIS CRIADOS!');
+            }
+            
+            createParticles(x, y, '#00ff00', 15);
+        }
+
+        // Funções para elementos de fundo
+        function spawnPlanet() {
+            const size = 60 + Math.random() * 100;
+            planets.push({
+                x: canvas.width + size,
+                y: Math.random() * (canvas.height - size),
+                size: size,
+                speed: 0.5 + Math.random() * 1,
+                color: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7'][Math.floor(Math.random() * 5)],
+                hasRing: Math.random() > 0.5,
+                rotation: Math.random() * Math.PI * 2
+            });
+        }
+
+        function spawnAlien() {
+            const size = 30 + Math.random() * 20;
+            aliens.push({
+                x: canvas.width + size,
+                y: Math.random() * (canvas.height - size),
+                size: size,
+                speed: 2 + Math.random() * 2,
+                wobble: 0,
+                color: '#00ff00',
+                antennaAngle: 0
+            });
+        }
+
+        function spawnAsteroid() {
+            const size = 20 + Math.random() * 40;
+            asteroids.push({
+                x: canvas.width + size,
+                y: Math.random() * (canvas.height - size),
+                size: size,
+                speed: 1.5 + Math.random() * 2.5,
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.1,
+                points: Math.floor(6 + Math.random() * 4)
+            });
+        }
+
+        function updateBackgroundElements(timeScale) {
+            // Atualizar planetas
+            planets.forEach((planet, index) => {
+                planet.x -= planet.speed * timeScale;
+                planet.rotation += 0.005;
+                if (planet.x + planet.size < 0) {
+                    planets.splice(index, 1);
+                }
+            });
+
+            // Atualizar aliens
+            aliens.forEach((alien, index) => {
+                alien.x -= alien.speed * timeScale;
+                alien.wobble += 0.1;
+                alien.antennaAngle = Math.sin(alien.wobble) * 0.3;
+                if (alien.x + alien.size < 0) {
+                    aliens.splice(index, 1);
+                }
+            });
+
+            // Atualizar asteroides
+            asteroids.forEach((asteroid, index) => {
+                asteroid.x -= asteroid.speed * timeScale;
+                asteroid.rotation += asteroid.rotationSpeed;
+                if (asteroid.x + asteroid.size < 0) {
+                    asteroids.splice(index, 1);
+                }
+            });
+
+            // Spawn novos elementos
+            if (Math.random() < 0.005) spawnPlanet();
+            if (Math.random() < 0.01) spawnAlien();
+            if (Math.random() < 0.015) spawnAsteroid();
+        }
+
+        function createPlatform() {
+            platforms.push({
+                x: ghost.x + 50,
+                y: ghost.y + (ghost.gravityReversed ? -60 : ghost.height + 10),
+                width: 150,
+                height: 15,
+                temporary: true,
+                life: 180, // 3 segundos
+                opacity: 1
+            });
+        }
+
+        function showAbility(text, continuous = false) {
+            const indicator = document.getElementById('abilityIndicator');
+            indicator.textContent = text;
+            indicator.style.display = 'block';
+            if (continuous) {
+                indicator.classList.add('ability-active');
+            } else {
+                indicator.classList.remove('ability-active');
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    color: color,
+                    life: 30,
+                    size: Math.random() * 3 + 2
+                });
+            }
+        }
+
+        function spawnObstacle() {
+            const type = Math.random();
+            
+            if (type < 0.4) {
+                // Obstáculo no chão
+                obstacles.push({
+                    x: canvas.width,
+                    y: ghost.gravityReversed ? 0 : canvas.height - 60,
+                    width: 30 + Math.random() * 20,
+                    height: 60 + Math.random() * 40,
+                    type: 'ground'
+                });
+            } else if (type < 0.7) {
+                // Obstáculo voador
+                obstacles.push({
+                    x: canvas.width,
+                    y: 200 + Math.random() * 200,
+                    width: 40,
+                    height: 30,
+                    type: 'flying'
+                });
+            } else {
+                // Parede alta
+                obstacles.push({
+                    x: canvas.width,
+                    y: ghost.gravityReversed ? 0 : canvas.height - 150,
+                    width: 20,
+                    height: 150,
+                    type: 'wall'
+                });
+            }
+        }
+
+        function updateScenario() {
+            const newPhase = Math.floor(distance / 500) + 1;
+            if (newPhase !== phase && newPhase <= scenarios.length) {
+                phase = newPhase;
+                currentScenario = scenarios[phase - 1];
+                createParticles(canvas.width / 2, canvas.height / 2, '#ffffff', 50);
+                showAbility(`FASE ${phase}: ${currentScenario.name}!`);
+            }
+        }
+
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            const timeScale = bulletTimeActive ? 0.3 : 1;
+
+            // Carregar pulo
+            if (ghost.charging && ghost.jumpCharge < 150) {
+                ghost.jumpCharge += 3;
+            }
+
+            // Física do fantasma
+            ghost.velocityY += ghost.gravity * timeScale;
+            ghost.y += ghost.velocityY * timeScale;
+
+            // Limites do canvas
+            if (ghost.gravityReversed) {
+                if (ghost.y <= 0) {
+                    ghost.y = 0;
+                    ghost.velocityY = 0;
+                    ghost.isJumping = false;
+                    ghost.canDoubleJump = true;
+                }
+            } else {
+                if (ghost.y + ghost.height >= canvas.height) {
+                    ghost.y = canvas.height - ghost.height;
+                    ghost.velocityY = 0;
+                    ghost.isJumping = false;
+                    ghost.canDoubleJump = true;
+                }
+            }
+
+            // Trail do fantasma
+            ghost.trail.push({ x: ghost.x, y: ghost.y, opacity: 0.5 });
+            if (ghost.trail.length > 8) ghost.trail.shift();
+
+            // Atualizar obstáculos
+            obstacles.forEach((obs, index) => {
+                obs.x -= gameSpeed * timeScale;
+                
+                if (obs.x + obs.width < 0) {
+                    obstacles.splice(index, 1);
+                    score += 10;
+                }
+
+                // Colisão
+                if (checkCollision(ghost, obs)) {
+                    gameOver();
+                }
+            });
+
+            // Atualizar plataformas
+            platforms.forEach((plat, index) => {
+                plat.x -= gameSpeed * timeScale;
+                
+                if (plat.temporary) {
+                    plat.life -= timeScale;
+                    plat.opacity = plat.life / 180;
+                    if (plat.life <= 0) {
+                        platforms.splice(index, 1);
+                        return;
+                    }
+                }
+
+                // Colisão com plataforma
+                if (ghost.velocityY > 0 && !ghost.gravityReversed &&
+                    ghost.y + ghost.height >= plat.y &&
+                    ghost.y + ghost.height <= plat.y + plat.height &&
+                    ghost.x + ghost.width > plat.x &&
+                    ghost.x < plat.x + plat.width) {
+                    ghost.y = plat.y - ghost.height;
+                    ghost.velocityY = 0;
+                    ghost.isJumping = false;
+                    ghost.canDoubleJump = true;
+                }
+            });
+
+            // Atualizar partículas
+            particles.forEach((p, index) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                if (p.life <= 0) particles.splice(index, 1);
+            });
+
+            // Atualizar portais
+            portals.forEach(portal => {
+                portal.rotation += 0.1;
+            });
+
+            // Teleporte entre portais
+            if (portals.length === 2) {
+                portals.forEach((portal, index) => {
+                    if (checkCollision(ghost, portal)) {
+                        const otherPortal = portals[1 - index];
+                        ghost.x = otherPortal.x;
+                        ghost.y = otherPortal.y;
+                        createParticles(ghost.x, ghost.y, '#00ff00', 20);
+                        portals = [];
+                    }
+                });
+            }
+
+            // Cooldowns
+            if (bulletTimeCooldown > 0) {
+                bulletTimeCooldown--;
+                if (bulletTimeCooldown === bulletTimeCooldownTime) {
+                    bulletTimeActive = false;
+                    document.getElementById('abilityIndicator').style.display = 'none';
+                }
+            }
+            
+            if (platformCooldown > 0) platformCooldown--;
+            if (portalCooldown > 0) portalCooldown--;
+
+            // Spawn obstáculos
+            if (Math.random() < 0.02 * timeScale) {
+                spawnObstacle();
+            }
+
+            // Aumentar velocidade e distância
+            distance += gameSpeed * timeScale * 0.1;
+            if (distance % 100 < 1) gameSpeed += 0.05;
+
+            // Atualizar cenário
+            updateScenario();
+
+            // Atualizar elementos de fundo
+            updateBackgroundElements(timeScale);
+
+            // Atualizar UI
+            document.getElementById('distance').textContent = Math.floor(distance);
+            document.getElementById('score').textContent = score;
+            document.getElementById('phase').textContent = phase;
+            document.getElementById('sceneName').textContent = currentScenario.name;
+        }
+
+        function draw() {
+            // Background com gradiente do cenário atual
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, currentScenario.color1);
+            gradient.addColorStop(1, currentScenario.color2);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Estrelas de fundo
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 73 + distance) % canvas.width;
+                const y = (i * 37) % canvas.height;
+                ctx.fillRect(x, y, 2, 2);
+            }
+
+            // Desenhar planetas
+            planets.forEach(planet => {
+                ctx.save();
+                ctx.globalAlpha = 0.6;
+                
+                // Planeta
+                const gradient = ctx.createRadialGradient(
+                    planet.x, planet.y, 0,
+                    planet.x, planet.y, planet.size
+                );
+                gradient.addColorStop(0, planet.color);
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(planet.x, planet.y, planet.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Anéis do planeta
+                if (planet.hasRing) {
+                    ctx.strokeStyle = planet.color;
+                    ctx.lineWidth = 5;
+                    ctx.globalAlpha = 0.4;
+                    ctx.beginPath();
+                    ctx.ellipse(planet.x, planet.y, planet.size * 1.5, planet.size * 0.3, planet.rotation, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Detalhes do planeta (crateras/manchas)
+                ctx.globalAlpha = 0.3;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                for (let i = 0; i < 3; i++) {
+                    const angle = (planet.rotation + i) * Math.PI;
+                    const offsetX = Math.cos(angle) * planet.size * 0.3;
+                    const offsetY = Math.sin(angle) * planet.size * 0.3;
+                    ctx.beginPath();
+                    ctx.arc(planet.x + offsetX, planet.y + offsetY, planet.size * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            });
+
+            // Desenhar aliens (ETs)
+            aliens.forEach(alien => {
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+                ctx.translate(alien.x, alien.y);
+                
+                // Disco voador
+                const ufoGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, alien.size);
+                ufoGradient.addColorStop(0, '#00ff00');
+                ufoGradient.addColorStop(0.5, '#00cc00');
+                ufoGradient.addColorStop(1, '#006600');
+                
+                ctx.fillStyle = ufoGradient;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, alien.size, alien.size * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Cúpula
+                ctx.fillStyle = '#00ffff';
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(0, -alien.size * 0.2, alien.size * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 0.7;
+                
+                // Alien dentro da cúpula
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath();
+                ctx.ellipse(0, -alien.size * 0.2, alien.size * 0.2, alien.size * 0.25, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Olhos do alien
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(-alien.size * 0.1, -alien.size * 0.25, alien.size * 0.05, 0, Math.PI * 2);
+                ctx.arc(alien.size * 0.1, -alien.size * 0.25, alien.size * 0.05, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Antenas
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-alien.size * 0.15, -alien.size * 0.4);
+                ctx.lineTo(-alien.size * 0.2, -alien.size * 0.6 + Math.sin(alien.wobble) * 5);
+                ctx.moveTo(alien.size * 0.15, -alien.size * 0.4);
+                ctx.lineTo(alien.size * 0.2, -alien.size * 0.6 + Math.cos(alien.wobble) * 5);
+                ctx.stroke();
+                
+                // Bolas nas antenas
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(-alien.size * 0.2, -alien.size * 0.6 + Math.sin(alien.wobble) * 5, 3, 0, Math.PI * 2);
+                ctx.arc(alien.size * 0.2, -alien.size * 0.6 + Math.cos(alien.wobble) * 5, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Luzes do disco voador
+                ctx.fillStyle = '#ffff00';
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2 + alien.wobble;
+                    ctx.globalAlpha = 0.5 + Math.sin(alien.wobble * 2 + i) * 0.3;
+                    ctx.beginPath();
+                    ctx.arc(
+                        Math.cos(angle) * alien.size * 0.7,
+                        Math.sin(angle) * alien.size * 0.28,
+                        3,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            });
+
+            // Desenhar asteroides
+            asteroids.forEach(asteroid => {
+                ctx.save();
+                ctx.globalAlpha = 0.8;
+                ctx.translate(asteroid.x, asteroid.y);
+                ctx.rotate(asteroid.rotation);
+                
+                // Criar forma irregular do asteroide
+                ctx.fillStyle = '#8B7355';
+                ctx.strokeStyle = '#654321';
+                ctx.lineWidth = 2;
+                
+                ctx.beginPath();
+                for (let i = 0; i < asteroid.points; i++) {
+                    const angle = (i / asteroid.points) * Math.PI * 2;
+                    const radius = asteroid.size * (0.7 + Math.random() * 0.3);
+                    const x = Math.cos(angle) * radius;
+                    const y = Math.sin(angle) * radius;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                
+                // Crateras no asteroide
+                ctx.fillStyle = '#5a4a3a';
+                ctx.globalAlpha = 0.5;
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i / 3) * Math.PI * 2;
+                    const dist = asteroid.size * 0.4;
+                    ctx.beginPath();
+                    ctx.arc(
+                        Math.cos(angle) * dist,
+                        Math.sin(angle) * dist,
+                        asteroid.size * 0.15,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            });
+
+            // Trail do fantasma
+            ghost.trail.forEach((pos, index) => {
+                const opacity = (index / ghost.trail.length) * 0.3;
+                ctx.fillStyle = `rgba(200, 200, 255, ${opacity})`;
+                ctx.fillRect(pos.x, pos.y, ghost.width, ghost.height);
+            });
+
+            // Fantasma com efeito de transparência
+            ctx.save();
+            ctx.globalAlpha = ghost.opacity + Math.sin(Date.now() / 200) * 0.1;
+            
+            // Corpo do fantasma
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(ghost.x + ghost.width/2, ghost.y + 20, 20, Math.PI, 0);
+            ctx.lineTo(ghost.x + ghost.width, ghost.y + ghost.height - 10);
+            for (let i = 0; i < 3; i++) {
+                ctx.lineTo(ghost.x + ghost.width - i * 13, ghost.y + ghost.height);
+                ctx.lineTo(ghost.x + ghost.width - (i + 0.5) * 13, ghost.y + ghost.height - 10);
+            }
+            ctx.lineTo(ghost.x, ghost.y + ghost.height - 10);
+            ctx.closePath();
+            ctx.fill();
+
+            // Olhos
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(ghost.x + 15, ghost.y + 20, 4, 0, Math.PI * 2);
+            ctx.arc(ghost.x + 28, ghost.y + 20, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Indicador de pulo carregado
+            if (ghost.charging) {
+                const chargeHeight = (ghost.jumpCharge / 150) * 30;
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(ghost.x - 10, ghost.y + ghost.height - chargeHeight, 5, chargeHeight);
+            }
+
+            ctx.restore();
+
+            // Plataformas
+            platforms.forEach(plat => {
+                ctx.globalAlpha = plat.opacity || 1;
+                ctx.fillStyle = plat.temporary ? '#00ffff' : '#666666';
+                ctx.fillRect(plat.x, plat.y, plat.width, plat.height);
+                
+                if (plat.temporary) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(plat.x, plat.y, plat.width, plat.height);
+                }
+                ctx.globalAlpha = 1;
+            });
+
+            // Obstáculos
+            obstacles.forEach(obs => {
+                ctx.fillStyle = currentScenario.obstacleColor;
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                
+                // Brilho no obstáculo
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+            });
+
+            // Portais
+            portals.forEach(portal => {
+                ctx.save();
+                ctx.translate(portal.x + portal.width/2, portal.y + portal.height/2);
+                ctx.rotate(portal.rotation);
+                
+                // Portal girando
+                for (let i = 0; i < 8; i++) {
+                    ctx.strokeStyle = `hsl(${(Date.now() / 10 + i * 45) % 360}, 100%, 50%)`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 15 + i * 2, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            });
+
+            // Partículas
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life / 30;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+
+            // Efeito Bullet Time
+            if (bulletTimeActive) {
+                ctx.fillStyle = 'rgba(0, 100, 255, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Indicadores de cooldown
+            const cdY = canvas.height - 30;
+            if (bulletTimeCooldown > 0) {
+                const cdPercent = bulletTimeCooldown / (bulletTimeDuration + bulletTimeCooldownTime);
+                ctx.fillStyle = bulletTimeCooldown > bulletTimeCooldownTime ? '#00ffff' : '#666666';
+                ctx.fillRect(20, cdY, 100 * (1 - cdPercent), 10);
+                ctx.strokeStyle = '#ffffff';
+                ctx.strokeRect(20, cdY, 100, 10);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('B', 5, cdY + 9);
+            }
+            
+            if (platformCooldown > 0) {
+                const cdPercent = platformCooldown / platformCooldownTime;
+                ctx.fillStyle = '#666666';
+                ctx.fillRect(140, cdY, 100 * (1 - cdPercent), 10);
+                ctx.strokeStyle = '#ffffff';
+                ctx.strokeRect(140, cdY, 100, 10);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('P', 125, cdY + 9);
+            }
+            
+            if (portalCooldown > 0) {
+                const cdPercent = portalCooldown / portalCooldownTime;
+                ctx.fillStyle = '#666666';
+                ctx.fillRect(260, cdY, 100 * (1 - cdPercent), 10);
+                ctx.strokeStyle = '#ffffff';
+                ctx.strokeRect(260, cdY, 100, 10);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText('Portal', 240, cdY + 9);
+            }
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalDistance').textContent = Math.floor(distance);
+            document.getElementById('finalScore').textContent = score;
+        }
+
+        function restartGame() {
+            gameRunning = true;
+            distance = 0;
+            score = 0;
+            gameSpeed = 6;
+            phase = 1;
+            currentScenario = scenarios[0];
+            
+            ghost.y = 400;
+            ghost.velocityY = 0;
+            ghost.isJumping = false;
+            ghost.canDoubleJump = true;
+            ghost.jumpCharge = 0;
+            ghost.charging = false;
+            ghost.gravity = Math.abs(ghost.gravity);
+            ghost.gravityReversed = false;
+            ghost.trail = [];
+            
+            obstacles = [];
+            platforms = [];
+            particles = [];
+            portals = [];
+            planets = [];
+            aliens = [];
+            asteroids = [];
+            
+            bulletTimeActive = false;
+            bulletTimeCooldown = 0;
+            platformCooldown = 0;
+            portalCooldown = 0;
+            
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('abilityIndicator').style.display = 'none';
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Iniciar o jogo
+        // Spawn inicial de elementos de fundo
+        for (let i = 0; i < 3; i++) {
+            spawnPlanet();
+            spawnAlien();
+            spawnAsteroid();
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>
