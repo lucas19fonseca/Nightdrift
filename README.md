@@ -1,55 +1,50 @@
-🚀 Nightdrift
+# 🚀 Nightdrift
 
-Nightdrift é um jogo arcade 2D desenvolvido com HTML, CSS e JavaScript puro, utilizando a API Canvas para renderização gráfica.
+### Um jogo arcade espacial desenvolvido com JavaScript e Canvas
 
-O objetivo do jogo é controlar um foguete e desviar dos asteroides, acumulando o maior número de pontos possível.
+**Nightdrift** é um jogo 2D inspirado em clássicos arcade, onde o jogador controla um foguete em meio a um campo de asteroides no espaço.
+O desafio é sobreviver o máximo possível, acumulando pontos e utilizando power-ups estratégicos.
 
-🎮 Como Jogar
+---
 
-Clique na tela ou pressione ESPAÇO para fazer o foguete subir.
+## 🎯 Sobre o Jogo
 
-Desvie dos asteroides.
+Em Nightdrift, você precisa:
 
-Cada obstáculo ultrapassado vale 1 ponto.
+* 🚀 Controlar o foguete com cliques ou tecla **ESPAÇO**
+* ☄️ Desviar dos asteroides
+* 💰 Coletar moedas especiais
+* 🛡️ Ativar escudo temporário ao coletar moedas
+* 📈 Sobreviver enquanto a dificuldade aumenta progressivamente
 
-Colete moedas 💰 para ativar um escudo temporário 🛡️ (3 segundos).
+A cada obstáculo ultrapassado, sua pontuação aumenta.
+O jogo salva automaticamente o **recorde do jogador** no navegador utilizando LocalStorage.
 
-O jogo termina ao colidir com um obstáculo ou tocar o chão sem escudo.
+---
 
-⚙️ Funcionalidades
+## 🎮 Como Jogar
 
-Sistema de pontuação em tempo real
+* Clique na tela ou pressione **ESPAÇO** para fazer o foguete subir.
+* Evite colidir com os asteroides.
+* Colete moedas para ativar um **escudo de 3 segundos**.
+* O jogo termina ao colidir sem escudo ou tocar o chão.
 
-Recorde salvo no LocalStorage
+---
 
-Escudo temporário ao coletar moedas
+## ⚙️ Funcionalidades
 
-Dificuldade progressiva (a velocidade aumenta com o tempo)
+* Sistema de pontuação em tempo real
+* Recorde salvo automaticamente
+* Power-up de escudo temporário
+* Dificuldade progressiva
+* Efeitos visuais e partículas
+* Layout responsivo (Desktop e Mobile)
 
-Efeitos visuais e animações
+---
 
-Layout responsivo (funciona em desktop e mobile)
+## 🛠️ Tecnologias Utilizadas
 
-🛠️ Tecnologias Utilizadas
-
-HTML5
-
-CSS3
-
-JavaScript
-
-Canvas API
-
-📌 Objetivo do Projeto
-
-Projeto desenvolvido para praticar:
-
-Manipulação do Canvas
-
-Lógica de jogos em JavaScript
-
-Controle de colisão
-
-Animações e física simples (gravidade e pulo)
-
-Organização de estado do jogo
+* HTML5
+* CSS3
+* JavaScript
+* Canvas API
